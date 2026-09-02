@@ -217,7 +217,7 @@
             <textarea id="firma-texto" rows="2" placeholder="Este correo y cualquier archivo adjunto son confidenciales..."></textarea>
             
             <div class="note" style="margin-top: 10px; color: #d35400;">
-                ⚠️ <b>Importante sobre Imágenes:</b> Los navegadores no adjuntan imágenes automáticamente. Si subes fotos, al hacer clic en "Enviar" <b>copiaremos todo el mensaje (texto + fotos + privacidad) a tu portapapeles</b>. Solo abre la ventana del correo y presiona <b>Ctrl + V (Pegar)</b> para ver tu firma completa.
+                ⚠️ <b>Importante sobre formato (Letras grandes, negritas, firmas):</b> El correo automático solo soporta texto básico. Si quieres que se vean los <b>brincos de línea</b>, las imágenes, la privacidad y las etiquetas HTML (como &lt;b&gt; para negritas), al abrirse el correo presiona <b>Ctrl + A</b> (Seleccionar todo) y luego <b>Ctrl + V</b> (Pegar). Esto reemplazará el texto automático con tu mensaje 100% formateado.
             </div>
         </div>
 
@@ -424,7 +424,6 @@
             actualizarEstadisticas();
         }
 
-        // Función para aplicar reemplazos de los nuevos placeholders
         function aplicarPlantilla(plantilla, nombre, cct, fecha, hora) {
             if (!plantilla) return "";
             return plantilla
@@ -717,36 +716,46 @@
                 }
             } else if (canal === 'correo') {
                 const textoPrivacidad = document.getElementById('firma-texto') ? document.getElementById('firma-texto').value : '';
-                const cuerpoCompleto = contacto.mensaje + (textoPrivacidad ? "\n\n--\n" + textoPrivacidad : "");
+                
+                // 1. Quitamos el texto de privacidad del cuerpo automático para evitar la duplicidad.
+                // El cuerpo automático llevará SOLO el mensaje principal.
+                const cuerpoCompleto = contacto.mensaje;
                 const textoCodificado = encodeURIComponent(cuerpoCompleto);
                 const asuntoCodificado = encodeURIComponent(contacto.asunto || "Mensaje");
                 
-                if (firmaImagesBase64.length > 0 || textoPrivacidad) {
-                    let htmlFirma = '';
+                // 2. Preparamos SIEMPRE el portapapeles en HTML (para que respete negritas, saltos de línea y firmas)
+                let htmlFirma = '';
+                if (firmaImagesBase64.length > 0) {
                     firmaImagesBase64.forEach(img => {
                         htmlFirma += `<img src="${img}" style="max-height: 120px; display: block; margin-top: 5px;"><br>`;
                     });
-                    
-                    const htmlContent = `
-                        <div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${contacto.mensaje}</div>
-                        <br>
-                        ${htmlFirma}
-                        <div style="font-size: 0.85em; color: #555; margin-top: 15px; white-space: pre-wrap;">${textoPrivacidad}</div>
-                    `;
-                    
-                    try {
-                        const blobHtml = new Blob([htmlContent], { type: "text/html" });
-                        const blobText = new Blob([cuerpoCompleto], { type: "text/plain" });
-                        const clipboardItem = new ClipboardItem({
-                            "text/html": blobHtml,
-                            "text/plain": blobText
-                        });
-                        navigator.clipboard.write([clipboardItem]).catch(e => console.log("Permiso de portapapeles denegado", e));
-                    } catch(e) {
-                        console.log("Error al copiar al portapapeles: ", e);
-                    }
                 }
                 
+                // Reemplazamos los saltos de línea físicos por <br> para que el HTML los respete perfectamente.
+                const mensajeHTML = contacto.mensaje.replace(/\n/g, '<br>');
+                const privacidadHTML = textoPrivacidad ? textoPrivacidad.replace(/\n/g, '<br>') : '';
+                
+                // Construimos el bloque HTML final que va al portapapeles
+                const htmlContent = `
+                    <div style="font-family: Arial, sans-serif;">${mensajeHTML}</div>
+                    <br>
+                    ${htmlFirma}
+                    <div style="font-size: 0.85em; color: #555; margin-top: 15px;">${privacidadHTML}</div>
+                `;
+                
+                try {
+                    const blobHtml = new Blob([htmlContent], { type: "text/html" });
+                    const blobText = new Blob([cuerpoCompleto], { type: "text/plain" });
+                    const clipboardItem = new ClipboardItem({
+                        "text/html": blobHtml,
+                        "text/plain": blobText
+                    });
+                    navigator.clipboard.write([clipboardItem]).catch(e => console.log("Permiso de portapapeles denegado", e));
+                } catch(e) {
+                    console.log("Error al copiar al portapapeles: ", e);
+                }
+                
+                // Abrimos el cliente de correo
                 if (usarDesktop) {
                     url = `mailto:${contacto.destino}?subject=${asuntoCodificado}&body=${textoCodificado}`;
                     window.open(url, "_self");
