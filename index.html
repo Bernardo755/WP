@@ -732,7 +732,7 @@
                 }
                 
                 // Reemplazamos los saltos de línea físicos por <br> para que el HTML los respete perfectamente.
-               // const mensajeHTML = contacto.mensaje.replace(/\n/g, '<br>');
+                const mensajeHTML = contacto.mensaje.replace(/\n/g, '<br>');
                 const privacidadHTML = textoPrivacidad ? textoPrivacidad.replace(/\n/g, '<br>') : '';
                 
                 // Construimos el bloque HTML final que va al portapapeles
